@@ -8,30 +8,41 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 
-// Manually specify the asset paths
 const modelObj = require('../assets/car.obj');
 const modelMtl = require('../assets/car.mtl');
 const textureFile = require('../assets/texture.png');
 
+
+const getDistance = (pointA, pointB) => {
+  const dx = pointA.pageX - pointB.pageX;
+  const dy = pointA.pageY - pointB.pageY;
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
 const ThreeDView = () => {
   const rendererRef = useRef(null);
   
-  isPressed = false;
+  const isPressed  = useRef(false);
+  const isRotating = useRef(true);
+  
+  const distance = useRef(0);
+  const startDistance = useRef(0);
 
   const objectRef = useRef(null); // Ref to hold the loaded object
  
-  const startRotationX = useRef(0);
-  const startRotationY = useRef(0);
+  
 
   const touchStartX = useRef(0);
-  const touchMovingX = useRef(0);
   const touchDifferenceX = useRef(0);
 
   const touchStartY = useRef(0);
-  const touchMovingY = useRef(0);
   const touchDifferenceY = useRef(0);
 
-  sensivity=0.01;
+  const rotatingSensivity= useRef(0.07);
+  const zoomSensivity = useRef(0.05);
+
+  const zoomLimitIn= useRef(-3);
+  const zoomLimitOut = useRef(15);
 
   const onContextCreate = useCallback(async (gl) => {
     console.log('Starting animation');
@@ -110,15 +121,24 @@ const ThreeDView = () => {
     const animate = () => {
       requestAnimationFrame(animate);
 
-      if (isPressed) {
-        console.log(startRotationY.current, touchDifferenceX);
-        objectRef.current.rotation.y += touchDifferenceX.current * sensivity;
-        objectRef.current.rotation.x += touchDifferenceY.current * sensivity;
+      if (isPressed.current) {
+        if(isRotating.current) {
+        objectRef.current.rotation.y += touchDifferenceX.current * rotatingSensivity.current;
+        objectRef.current.rotation.x += touchDifferenceY.current * rotatingSensivity.current;
 
-        touchStartX.current +=touchDifferenceX.current;
         touchStartY.current +=touchDifferenceY.current;
+        touchStartX.current +=touchDifferenceX.current;
         touchDifferenceX.current = 0;
         touchDifferenceY.current = 0;
+        }
+        else{
+          let futureZoom = camera.position.z +(startDistance.current - distance.current)*zoomSensivity.current;
+          if(futureZoom > zoomLimitIn.current && futureZoom < zoomLimitOut.current)
+            camera.position.z =futureZoom;
+
+          startDistance.current = distance.current;
+          console.log(camera.position.z);
+        }
       }
 
       renderer.render(scene, camera);
@@ -139,33 +159,45 @@ const ThreeDView = () => {
       onStartShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
         
-        startRotationX.current = objectRef.current.rotation.x;
-        startRotationY.current = objectRef.current.rotation.y;
 
-        isPressed = true;
+        
+        isPressed.current = true;
+
         touchStartX.current = evt.nativeEvent.locationX; // Store initial touch position
-        touchMovingX.current = evt.nativeEvent.locationX; // Initialize touchMovingX
 
         touchStartY.current = evt.nativeEvent.locationY; 
-        touchMovingY.current = evt.nativeEvent.locationY;
       },
       onPanResponderMove: (evt, gestureState) => {
-        if (isPressed) {
-          touchMovingX.current = gestureState.moveX; // Update touchMovingX as touch moves
-          touchDifferenceX.current = touchMovingX.current - touchStartX.current;
+        isRotating.current = gestureState.numberActiveTouches === 1;
+        if(!isRotating.current) {
+          const [touch1, touch2] = evt.nativeEvent.touches;
+          if(!startDistance.current){
+            startDistance.current = getDistance(touch1, touch2);
+            distance.current = startDistance.current;
+          }
+          else
+            distance.current = getDistance(touch1, touch2);
+          
+        }
+        else{
+         startDistance.current=0;
+         distance.current=0; 
+        }
 
-          touchMovingY.current = gestureState.moveY; // Update touchMovingX as touch moves
-          touchDifferenceY.current = touchMovingY.current - touchStartY.current;
+        if (isPressed.current) {
+          touchDifferenceX.current = gestureState.vx;
+
+          touchDifferenceY.current = gestureState.vy;
         }
       },
       onPanResponderRelease: () => {
         
         console.log('Touch end detected');
-        isPressed = false;
+        isPressed.current = false;
       },
       onPanResponderTerminate: () => {
         console.log('Touch terminated');
-        isPressed = false;
+        isPressed.current = false;
       },
     })
   ).current;

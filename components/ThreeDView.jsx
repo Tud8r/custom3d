@@ -7,6 +7,7 @@ import { Asset } from 'expo-asset';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
+import { ColorNodeUniform } from 'three/examples/jsm/renderers/common/nodes/NodeUniform.js';
 
 const modelObj = require('../assets/car.obj');
 const modelMtl = require('../assets/car.mtl');
@@ -38,10 +39,11 @@ const ThreeDView = () => {
   const touchStartY = useRef(0);
   const touchDifferenceY = useRef(0);
 
-  const rotatingSensivity= useRef(0.07);
-  const zoomSensivity = useRef(0.05);
+  const rotatingSensivity = useRef(0.07);
+  const rotatingSensivityWhileZooming = useRef(0.01)
+  const zoomSensivity = useRef(0.02);
 
-  const zoomLimitIn= useRef(-3);
+  const zoomLimitIn = useRef(-3);
   const zoomLimitOut = useRef(15);
 
   const onContextCreate = useCallback(async (gl) => {
@@ -122,7 +124,7 @@ const ThreeDView = () => {
       requestAnimationFrame(animate);
 
       if (isPressed.current) {
-        if(isRotating.current) {
+        
         objectRef.current.rotation.y += touchDifferenceX.current * rotatingSensivity.current;
         objectRef.current.rotation.x += touchDifferenceY.current * rotatingSensivity.current;
 
@@ -130,15 +132,19 @@ const ThreeDView = () => {
         touchStartX.current +=touchDifferenceX.current;
         touchDifferenceX.current = 0;
         touchDifferenceY.current = 0;
-        }
-        else{
+        
+        
           let futureZoom = camera.position.z +(startDistance.current - distance.current)*zoomSensivity.current;
           if(futureZoom > zoomLimitIn.current && futureZoom < zoomLimitOut.current)
             camera.position.z =futureZoom;
+  
+          
+    
+
 
           startDistance.current = distance.current;
-          console.log(camera.position.z);
-        }
+          //console.log(camera.position.z);
+        
       }
 
       renderer.render(scene, camera);
@@ -171,6 +177,8 @@ const ThreeDView = () => {
         isRotating.current = gestureState.numberActiveTouches === 1;
         if(!isRotating.current) {
           const [touch1, touch2] = evt.nativeEvent.touches;
+          //console.log(touchStartX1.current, touchDifferenceX1.current);
+
           if(!startDistance.current){
             startDistance.current = getDistance(touch1, touch2);
             distance.current = startDistance.current;
@@ -180,8 +188,10 @@ const ThreeDView = () => {
           
         }
         else{
-         startDistance.current=0;
-         distance.current=0; 
+          
+          startDistance.current=0;
+          distance.current=0; 
+
         }
 
         if (isPressed.current) {
@@ -194,10 +204,14 @@ const ThreeDView = () => {
         
         console.log('Touch end detected');
         isPressed.current = false;
+        
+        
       },
       onPanResponderTerminate: () => {
         console.log('Touch terminated');
         isPressed.current = false;
+        
+      
       },
     })
   ).current;

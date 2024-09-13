@@ -6,6 +6,6 @@ module.exports = {
   ...defaultConfig,
   resolver: {
     ...defaultConfig.resolver,
-    assetExts: [...defaultConfig.resolver.assetExts, 'obj', 'mtl', 'png', 'fbx'],
+    assetExts: [...defaultConfig.resolver.assetExts, 'obj', 'mtl', 'png', 'fbx', 'glb'],
   },
 };

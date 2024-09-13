@@ -12,12 +12,22 @@ import {
   Fredoka_600SemiBold,
   Fredoka_700Bold,
 } from "@expo-google-fonts/fredoka";
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 
 
 const image = require('../assets/background.png');;
+const Tab = createBottomTabNavigator();
 
 progress = 0.44;
+function HomeScreen() {
+  return (
+    <View style={styles.buttonContainer}>
+        <Ionicons name="bicycle-outline" size={35} color="#FFFFFF" />
+        <Text style={styles.text}>Rute Planner</Text>       
+    </View>
+  );
+}
 
 export default function App() {
   let [fontsLoaded] = useFonts({
@@ -56,6 +66,8 @@ export default function App() {
             <Ionicons name="chevron-forward-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
+
+        
 
         <View style={styles.bottomContainer}>
           <View style={styles.buttonContainer}>

@@ -6,9 +6,21 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
     "name": "3d",
-    "slug": "3d"
+    "slug": "3d",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "dba715d7-7988-47fe-a52c-9b19d049c7a9"
+      }
+    },
+    "android": {
+      "package": "test.planet"
+    }
   }
 }

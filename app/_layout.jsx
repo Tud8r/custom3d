@@ -16,7 +16,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 
 
-const image = require('../assets/background.png');;
+const image = require('../assets/background.jpeg');;
 const Tab = createBottomTabNavigator();
 
 progress = 0.44;

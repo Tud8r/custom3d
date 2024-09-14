@@ -27,6 +27,9 @@ const getDistance = (pointA, pointB) => {
   const dy = pointA.pageY - pointB.pageY;
   return Math.sqrt(dx * dx + dy * dy);
 };
+function degreesToRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
 
 const ThreeDView = () => {
   const rendererRef = useRef(null);
@@ -50,8 +53,16 @@ const ThreeDView = () => {
   const rotatingSensitivityWhileZooming = useRef(0.01);
   const zoomSensitivity = useRef(0.02);
 
-  const zoomLimitIn = useRef(-3);
+  const zoomLimitIn = useRef(2.9);
   const zoomLimitOut = useRef(15);
+
+  const rotatingSpeed = useRef(0.002);
+
+  const maxCloudSize = 1.15;
+  const minCloudSize = 0.8;
+  
+  const maxTreeSize = 1.15;
+  const minTreeSize = 0.8;
 
   const onContextCreate = useCallback(async (gl) => {
     console.log('Starting animation');
@@ -87,6 +98,7 @@ const ThreeDView = () => {
       return;
     }
 
+    ///scene
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -94,15 +106,31 @@ const ThreeDView = () => {
       0.1,
       1000
     );
+    
     const renderer = new Renderer({ gl });
     renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    
+    
+    ///lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0);
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5).normalize();
-    scene.add(directionalLight);
+    directionalLight.position.set(-5, 5, 5).normalize();
+    //scene.add(directionalLight);
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    const spotLight = new THREE.SpotLight(0xffffff,3);
+    spotLight.angle = degreesToRadians(60);
+    // make it cast shadows
+    spotLight.position.set(-1, 1, 2);
+    spotLight.castShadow = true;
+    spotLight.shadow.mapSize.width = 1024;
+    spotLight.shadow.mapSize.height = 1024;
+    spotLight.shadow.bias = -0.0001;
+    scene.add(spotLight);
 
     const textureLoader = new TextureLoader();
     const texture = textureLoader.load(assetTexture.localUri);
@@ -117,10 +145,11 @@ const ThreeDView = () => {
 
 
         object.traverse((child) => {
-          if (child.isMesh) {
-            child.material.map = texture;
-
+          if (child.isMesh ) {
+            child.castShadow = true;
+            //child.material = new THREE.MeshPhongMaterial({ color: 0xff0000, texture: child.material.texture});
           }
+        
         });
 
         object.position.set(0, 0, 0);
@@ -154,8 +183,105 @@ const ThreeDView = () => {
 
               }
             });
+            let cloudGeometry = null;
+            mtlLoader.load(assetCloudMtl.localUri, (cloudMaterials) => {
+              cloudMaterials.preload();
+              const cloudObjLoader = new OBJLoader();
+              cloudObjLoader.setMaterials(cloudMaterials);
 
-            let treeNumber = 200;
+              cloudObjLoader.load(assetCloudObj.localUri, (cloud) => {
+                cloud.traverse((child) => {
+                  if (child.isMesh) {
+                    
+                    child.geometry.center();
+                    cloudGeometry = child.geometry;
+                  }
+                });
+
+
+                const cloudNumber = 8;
+                const material = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+                const mesh = new THREE.InstancedMesh(cloudGeometry, material, cloudNumber);
+                object.add(mesh);
+                const dummy = new THREE.Object3D();
+                for (let i = 0; i < cloudNumber; i++) {
+                  dummy.rotation.set(180, 0, 0);
+                  const xe = Math.random() * 360; // Rotation around Z-axis
+
+                  const ze = Math.random() * 360;
+
+                  //const xe = 0; // Rotation around Z-axis
+
+                  //const ze = 0;
+
+                  // Convert degrees to radians
+                  const xr = degreesToRadians(xe);
+
+                  const zr = degreesToRadians(ze);
+
+                  // Set rotation (assuming order XYZ)
+                  dummy.rotation.set(xr, 0, zr+180); // for rigth orientation
+
+                  const scale = Math.random()*(maxCloudSize-minCloudSize)+minCloudSize;
+                  dummy.scale.set(scale,scale,scale); 
+
+
+                  // Function to convert degrees to radians
+                  // Function to convert degrees to radians
+                  function degreesToRadians(degrees) {
+                    return degrees * (Math.PI / 180);
+                  }
+
+                  // Function to round values below a threshold to zero
+                  function threshold(value, threshold = 1e-6) {
+                    return Math.abs(value) < threshold ? 0 : value;
+                  }
+
+                  // Define Euler angles in degrees
+                  const pitchDegrees = xe;  // Rotation around X-axis
+                  const yawDegrees = 0;   // Rotation around Y-axis
+                  const rollDegrees = ze;   // Rotation around Z-axis
+
+                  // Convert degrees to radians
+                  const pitchRadians = degreesToRadians(pitchDegrees);
+                  const yawRadians = degreesToRadians(yawDegrees);
+                  const rollRadians = degreesToRadians(rollDegrees);
+
+                  // Create a THREE.Euler object with the rotation angles in radians
+                  const euler = new THREE.Euler(pitchRadians, yawRadians, rollRadians, 'XYZ'); // Order: XYZ
+
+                  // Create a rotation matrix from Euler angles
+                  const rotationMatrix = new THREE.Matrix4();
+                  rotationMatrix.makeRotationFromEuler(euler);
+
+                  // Define the vector to be rotated
+                  const vector = new THREE.Vector3(0, 1, 0); // Example: the "up" vector
+
+                  // Rotate the vector using the rotation matrix
+                  const rotatedVector = vector.clone().applyMatrix4(rotationMatrix);
+
+                  // Apply threshold to handle very small values
+                  const thresholdedVector = new THREE.Vector3(
+                    threshold(rotatedVector.x),
+                    threshold(rotatedVector.y),
+                    threshold(rotatedVector.z)
+                  );
+
+                  console.log('Original vector:', vector);
+                  console.log('Rotated vector:', thresholdedVector);
+
+                  const distance = 1.34;
+
+                  dummy.position.x = rotatedVector.x * distance;
+                  dummy.position.y = rotatedVector.y * distance;
+                  dummy.position.z = rotatedVector.z * distance;
+
+                  dummy.updateMatrix();
+                  mesh.setMatrixAt(i, dummy.matrix);
+                }
+              });
+            });
+            let treeNumber = 100;
             const mesh = new THREE.InstancedMesh(treeGeometry, treeMaterial, treeNumber);
             object.add(mesh);
             console.log(treeTexture);
@@ -176,15 +302,14 @@ const ThreeDView = () => {
 
               // Set rotation (assuming order XYZ)
               dummy.rotation.set(xr, 0, zr);
-
+              const scale = Math.random()*(maxTreeSize-minTreeSize)+minTreeSize;
+              dummy.scale.set(scale,scale,scale);
 
 
 
               // Function to convert degrees to radians
               // Function to convert degrees to radians
-              function degreesToRadians(degrees) {
-                return degrees * (Math.PI / 180);
-              }
+              
 
               // Function to round values below a threshold to zero
               function threshold(value, threshold = 1e-6) {
@@ -243,7 +368,16 @@ const ThreeDView = () => {
     const animate = () => {
       requestAnimationFrame(animate);
 
+      if(objectRef.current && !isPressed.current) {
+        //console.log(objectRef.current.rotation.x);
+        objectRef.current.rotation.x += rotatingSpeed.current;
+        objectRef.current.rotation.y += rotatingSpeed.current;
+      }
+        
       if (isPressed.current && objectRef.current) {
+
+        
+
         const deltaX = touchDifferenceX.current * rotatingSensitivity.current;
         const deltaY = touchDifferenceY.current * rotatingSensitivity.current;
 
@@ -266,6 +400,8 @@ const ThreeDView = () => {
         touchStartX.current += touchDifferenceX.current;
         touchDifferenceX.current = 0;
         touchDifferenceY.current = 0;
+
+        //zoom 
 
         if (startDistance.current && distance.current) {
           const futureZoom = camera.position.z + (startDistance.current - distance.current) * zoomSensitivity.current;
